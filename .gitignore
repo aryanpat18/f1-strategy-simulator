@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Database data (Do NOT commit)
+postgres_data/
+
+# Environments
+.venv/
+venv/
+cache/
+env/
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Airflow local files
+airflow.db
+airflow.cfg
+logs/
+webserver_config.py
+
+# Model artifacts (trained models — too large for git)
+models/artifacts/*.joblib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Repomix / temp exploration
+repomix-output.xml

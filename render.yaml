@@ -1,0 +1,24 @@
+databases:
+  - name: f1-strategy-db
+    plan: free
+    databaseName: f1_strategy_db
+    user: f1_user
+
+services:
+  - type: web
+    name: f1-strategy-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: f1-strategy-db
+          property: connectionString
+      - key: MODEL_DIR
+        value: /app/models/artifacts
+      - key: PIT_LOSS_SECONDS
+        value: "22.0"
+      - key: LAP_VARIANCE
+        value: "0.1"
+    healthCheckPath: /data/tracks

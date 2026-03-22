@@ -1,0 +1,21 @@
+FROM python:3.9-slim
+
+# Project root inside container
+WORKDIR /app
+
+# 🔑 THIS IS THE MISSING LINE
+ENV PYTHONPATH=/app
+
+RUN pip install --no-cache-dir \
+    streamlit \
+    plotly \
+    requests \
+    pandas
+
+# Copy entire repository
+COPY . .
+
+EXPOSE 8501
+
+# Run Streamlit from project root
+CMD ["streamlit", "run", "app/streamlit_app.py", "--server.address=0.0.0.0"]

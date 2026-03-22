@@ -1,0 +1,511 @@
+aryanpatel@Aryans-MacBook-Pro f1-strategy-simulator % tree -I '.venv|__pycache__|.git|postgres_data'
+.
+├── Dockerfile.api
+├── Dockerfile.dashboard
+├── airflow.cfg
+├── airflow.db
+├── api
+│   ├── __init__.py
+│   ├── deps.py
+│   ├── main.py
+│   ├── routes
+│   │   ├── __init__.py
+│   │   └── simulation.py
+│   └── schemas.py
+├── app
+│   ├── __init__.py
+│   └── streamlit_app.py
+├── cache
+│   ├── 2024
+│   │   ├── 2024-03-02_Bahrain_Grand_Prix
+│   │   │   └── 2024-03-02_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-03-09_Saudi_Arabian_Grand_Prix
+│   │   │   └── 2024-03-09_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2024-03-24_Australian_Grand_Prix
+│   │   │   └── 2024-03-24_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-04-07_Japanese_Grand_Prix
+│   │   │   └── 2024-04-07_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-05-19_Emilia_Romagna_Grand_Prix
+│   │   │   └── 2024-05-19_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-05-26_Monaco_Grand_Prix
+│   │   │   └── 2024-05-26_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2024-06-09_Canadian_Grand_Prix
+│   │   │   └── 2024-06-09_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-06-23_Spanish_Grand_Prix
+│   │   │   └── 2024-06-23_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2024-06-30_Austrian_Grand_Prix
+│   │   │   └── 2024-06-30_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2024-07-07_British_Grand_Prix
+│   │   │   └── 2024-07-07_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-07-21_Hungarian_Grand_Prix
+│   │   │   └── 2024-07-21_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-07-28_Belgian_Grand_Prix
+│   │   │   └── 2024-07-28_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-08-25_Dutch_Grand_Prix
+│   │   │   └── 2024-08-25_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-09-01_Italian_Grand_Prix
+│   │   │   └── 2024-09-01_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-09-15_Azerbaijan_Grand_Prix
+│   │   │   └── 2024-09-15_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-09-22_Singapore_Grand_Prix
+│   │   │   └── 2024-09-22_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2024-10-27_Mexico_City_Grand_Prix
+│   │   │   └── 2024-10-27_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   ├── 2024-11-23_Las_Vegas_Grand_Prix
+│   │   │   └── 2024-11-23_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── car_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── position_data.ff1pkl
+│   │   │       ├── race_control_messages.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       ├── track_status_data.ff1pkl
+│   │   │       └── weather_data.ff1pkl
+│   │   └── 2024-12-08_Abu_Dhabi_Grand_Prix
+│   │       └── 2024-12-08_Race
+│   │           ├── _extended_timing_data.ff1pkl
+│   │           ├── car_data.ff1pkl
+│   │           ├── driver_info.ff1pkl
+│   │           ├── lap_count.ff1pkl
+│   │           ├── position_data.ff1pkl
+│   │           ├── race_control_messages.ff1pkl
+│   │           ├── session_info.ff1pkl
+│   │           ├── session_status_data.ff1pkl
+│   │           ├── timing_app_data.ff1pkl
+│   │           ├── track_status_data.ff1pkl
+│   │           └── weather_data.ff1pkl
+│   ├── 2025
+│   │   ├── 2025-03-16_Australian_Grand_Prix
+│   │   │   └── 2025-03-16_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-03-23_Chinese_Grand_Prix
+│   │   │   └── 2025-03-23_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-04-06_Japanese_Grand_Prix
+│   │   │   └── 2025-04-06_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-04-13_Bahrain_Grand_Prix
+│   │   │   └── 2025-04-13_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-04-20_Saudi_Arabian_Grand_Prix
+│   │   │   └── 2025-04-20_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-05-04_Miami_Grand_Prix
+│   │   │   └── 2025-05-04_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-05-18_Emilia_Romagna_Grand_Prix
+│   │   │   └── 2025-05-18_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-05-25_Monaco_Grand_Prix
+│   │   │   └── 2025-05-25_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-06-01_Spanish_Grand_Prix
+│   │   │   └── 2025-06-01_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-06-15_Canadian_Grand_Prix
+│   │   │   └── 2025-06-15_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-06-29_Austrian_Grand_Prix
+│   │   │   └── 2025-06-29_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-07-06_British_Grand_Prix
+│   │   │   └── 2025-07-06_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-07-27_Belgian_Grand_Prix
+│   │   │   └── 2025-07-27_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-08-03_Hungarian_Grand_Prix
+│   │   │   └── 2025-08-03_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-08-31_Dutch_Grand_Prix
+│   │   │   └── 2025-08-31_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-09-07_Italian_Grand_Prix
+│   │   │   └── 2025-09-07_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-09-21_Azerbaijan_Grand_Prix
+│   │   │   └── 2025-09-21_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-10-05_Singapore_Grand_Prix
+│   │   │   └── 2025-10-05_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-10-19_United_States_Grand_Prix
+│   │   │   └── 2025-10-19_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-10-26_Mexico_City_Grand_Prix
+│   │   │   └── 2025-10-26_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-11-09_São_Paulo_Grand_Prix 3
+│   │   │   └── 2025-11-09_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-11-22_Las_Vegas_Grand_Prix
+│   │   │   └── 2025-11-22_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   ├── 2025-11-30_Qatar_Grand_Prix
+│   │   │   └── 2025-11-30_Race
+│   │   │       ├── _extended_timing_data.ff1pkl
+│   │   │       ├── driver_info.ff1pkl
+│   │   │       ├── lap_count.ff1pkl
+│   │   │       ├── session_info.ff1pkl
+│   │   │       ├── session_status_data.ff1pkl
+│   │   │       ├── timing_app_data.ff1pkl
+│   │   │       └── track_status_data.ff1pkl
+│   │   └── 2025-12-07_Abu_Dhabi_Grand_Prix
+│   │       └── 2025-12-07_Race
+│   │           ├── _extended_timing_data.ff1pkl
+│   │           ├── driver_info.ff1pkl
+│   │           ├── lap_count.ff1pkl
+│   │           ├── session_info.ff1pkl
+│   │           ├── session_status_data.ff1pkl
+│   │           ├── timing_app_data.ff1pkl
+│   │           └── track_status_data.ff1pkl
+│   └── fastf1_http_cache.sqlite
+├── dashboard
+│   ├── __init__.py
+│   └── api_client.py
+├── data
+├── db
+│   ├── calculate_metrics.py
+│   ├── database.py
+│   └── init.sql
+├── docker-compose.yaml
+├── exploration.py
+├── file-structure.txt
+├── logs
+│   └── scheduler
+│       ├── 2025-12-31
+│       ├── 2026-01-01
+│       └── latest -> /opt/airflow/logs/scheduler/2026-01-01
+├── models
+│   ├── artifacts
+│   ├── lap_time_model.py
+│   ├── model_config.py
+│   ├── modeling_engine.py
+│   ├── optimization
+│   │   ├── optimizer_config.py
+│   │   └── strategy_optimizer.py
+│   ├── post_race
+│   │   ├── residual_analysis.py
+│   │   └── residual_logger.py
+│   ├── simulation_engine.py
+│   ├── strategy_generator.py
+│   ├── tire_rules.py
+│   └── train_lap_time_model.py
+├── pipelines
+│   ├── f1_ingestion_pipeline.py
+│   └── f1_season_master.py
+├── project-doc.txt
+├── repomix-output.xml
+└── requirements.txt
+
+105 directories, 402 files
+aryanpatel@Aryans-MacBook-Pro f1-strategy-simulator % 

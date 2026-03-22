@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:15
+    container_name: f1_postgres
+    environment:
+      POSTGRES_USER: f1_user
+      POSTGRES_PASSWORD: f1_password
+      POSTGRES_DB: f1_strategy_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - f1_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U f1_user -d f1_strategy_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: f1_strategy_api
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://f1_user:f1_password@db:5432/f1_strategy_db
+      - MODEL_DIR=/app/models/artifacts
+      - PYTHONPATH=/app
+    networks:
+      - f1_network
+    volumes:
+      - .:/app
+      - ./models/artifacts:/app/models/artifacts
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: f1_dashboard
+    depends_on:
+      - api
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+      - PYTHONPATH=/app
+    networks:
+      - f1_network
+    volumes:
+      - .:/app
+
+  airflow:
+    image: apache/airflow:2.7.1-python3.9
+    container_name: f1_airflow
+    user: "5000:0"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://f1_user:f1_password@db:5432/f1_strategy_db
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__DAGS_FOLDER=/app/pipelines
+      - DATABASE_URL=postgresql://f1_user:f1_password@db:5432/f1_strategy_db
+      - FASTF1_CACHE_PATH=/app/cache
+      - MODEL_DIR=/app/models/artifacts
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - ./pipelines:/app/pipelines
+      - ./cache:/app/cache
+      - ./models/artifacts:/app/models/artifacts
+    ports:
+      - "8080:8080"
+    networks:
+      - f1_network
+    command: bash -c "pip install -r /app/requirements.txt && airflow standalone"
+
+networks:
+  f1_network:
+    driver: bridge

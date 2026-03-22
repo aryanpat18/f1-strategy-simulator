@@ -1,0 +1,398 @@
+📘 Project Summary: F1 Strategy Intelligence Platform
+What is this project?
+This project is a Formula 1 race strategy intelligence system.
+In simple terms, it is a tool that:
+collects historical Formula 1 race data
+learns patterns from past races
+predicts what might happen in a future race
+simulates thousands of “what-if” scenarios
+and recommends the best race strategy for a driver
+It works before, during, and after a race.
+Think of it as a digital race strategist.
+Why does this exist?
+In Formula 1, races are often won or lost because of:
+when a driver pits
+which tires they use
+traffic and dirty air
+safety cars
+tire degradation
+risk vs reward decisions
+Teams use complex software to answer questions like:
+Should we pit now or later?
+Is a one-stop or two-stop strategy better today?
+How risky is this decision?
+What would have happened if we did something else?
+This project recreates that kind of decision-making system, using real F1 data and modern machine learning — but built locally and openly.
+High-Level Architecture (Big Picture)
+The system has five major parts working together:
+Data Pipeline – gets F1 data into a database
+Machine Learning Models – learn race behavior
+Simulation Engine – runs thousands of race scenarios
+API Backend – serves predictions and simulations
+Interactive Dashboard – shows results visually
+All of this runs locally using Docker, but is designed like a cloud system.
+1️⃣ Data Pipeline (The Foundation)
+What it does
+Automatically downloads F1 race data using the FastF1 library
+Stores it in a PostgreSQL database
+Runs on a schedule using Apache Airflow
+Validates data quality (no missing or impossible values)
+What kind of data?
+Lap times
+Tire compounds
+Pit stops
+Weather
+Driver positions
+Telemetry (where available)
+Why it matters
+Without clean, structured data, nothing else works.
+This pipeline ensures:
+“We can re-run the entire system for any race, any year, reliably.”
+2️⃣ Machine Learning Models (The Brain)
+The system uses multiple ML models, each with a clear purpose.
+A. Lap Time Prediction Model (Core Model)
+What it does:
+Predicts how fast a driver will complete a lap.
+Inputs include:
+Driver
+Track
+Lap number
+Tire compound and tire age
+Estimated fuel load
+Track & air temperature
+Whether the driver is stuck behind another car (dirty air)
+Stint number
+Outputs:
+Not just one number, but a range:
+optimistic lap time
+most likely lap time
+pessimistic lap time
+This allows the system to reason about risk and uncertainty.
+B. Tire Degradation Model
+What it does:
+Learns how different tires slow down over time on different tracks.
+This helps explain why lap times change and improves strategy realism.
+C. Pre-Race Strategy Prediction Model
+What it does (before the race starts):
+Looks at similar races from the past
+Groups races with similar conditions (track, temperature, safety cars)
+Predicts:
+likely number of pit stops
+expected stint lengths
+best starting tire
+probabilities of different strategies (e.g. 1-stop vs 2-stop)
+This answers:
+“Before lap 1, what strategies are most likely to work today?”
+D. Winner & Top-5 Prediction Models
+What they do:
+Predict who is most likely to win the race
+Predict which drivers are likely to finish in the top 5
+They consider:
+Driver’s past performance at that track
+Recent form (last few races)
+Current year car performance (cars change every year)
+Reliability and DNFs
+These predictions are probabilistic, not absolute.
+3️⃣ Simulation Engine (The What-If Machine)
+This is the heart of the system.
+What it does
+For a selected:
+Grand Prix
+Year
+Driver
+The engine:
+Automatically generates many valid race strategies
+Ensures F1 rules are followed
+at least two different dry tire compounds must be used (unless wet)
+Runs hundreds or thousands of simulated races
+Each simulation uses ML-predicted lap times + randomness
+Two Modes
+Manual Mode
+User specifies pit laps and tire choices manually.
+Good for:
+experimentation
+learning
+exploration
+Automated Mode (Main Vision)
+User simply selects:
+GP
+driver
+number of simulations
+The system:
+generates strategies
+simulates them
+ranks them by performance and risk
+Outputs
+For each strategy:
+average race time
+best / worst case
+probability of being faster than baseline
+risk level
+This answers:
+“What is the best strategy — and how risky is it?”
+4️⃣ Post-Race Learning Loop (Continuous Improvement)
+After a real race finishes:
+The system compares:
+what the model predicted
+what actually happened
+Stores the errors
+Detects patterns (e.g. model struggles in hot races)
+Adjusts future predictions
+This is how production ML systems improve over time.
+It turns the project from:
+“a one-off model”
+into
+a learning system
+5️⃣ Strategy Optimization (Prescriptive Intelligence)
+Instead of just testing ideas, the system can now recommend actions.
+It uses optimization techniques to:
+minimize total race time
+balance risk vs reward
+respect constraints (tires, pit loss, race length)
+This answers:
+“What should we do?”
+6️⃣ LLM-Powered GP Summaries (Human Understanding)
+For any Grand Prix, the system can generate:
+a one-page summary of the last 10 years
+key track characteristics
+strategic insights
+The language model does not invent facts — it explains insights derived from data.
+This helps humans understand why the system recommends something.
+7️⃣ User Interface (How Humans Use It)
+The Streamlit dashboard allows users to:
+select a race and driver
+view predictions
+run simulations
+explore strategy trade-offs visually
+see charts, distributions, and comparisons
+It turns complex ML outputs into decision-friendly visuals.
+In One Sentence (Elevator Pitch)
+This project is a full end-to-end Formula 1 strategy intelligence system that ingests real race data, learns how races behave, simulates thousands of scenarios, and recommends optimal, risk-aware strategies — before, during, and after a race.
+
+
+
+
+1) Project identity
+Name (practical)
+F1 Strategy Intelligence Platform / F1 Strategy Simulator
+One-line purpose
+An end-to-end Formula 1 race strategy system that ingests real race data, learns race behavior, simulates strategies, and recommends optimal, risk-aware decisions before/during/after a race. 
+project-doc
+Who it’s for
+Fans / analysts: explore “what-if” strategies and compare outcomes.
+Data/ML engineers: a realistic MLOps-style project (ingestion → training → serving → evaluation).
+Strategy nerds: strategy generation + constraint handling + probabilistic simulation.
+2) What the system delivers (capabilities)
+A. Historical data foundation
+Pulls structured F1 session data (laps, stints, tires, weather, control messages, etc.).
+Stores it in a database for fast querying and reproducibility. 
+project-doc
+B. Predictive intelligence (models)
+A set of models with clear roles:
+Lap time prediction (core): predicts lap times based on driver/track/stint/tire/conditions, including uncertainty bands (best/likely/worst). 
+project-doc
+Tire degradation: learns how pace drops as tires age on a given track/conditions. 
+project-doc
+Pre-race strategy priors: predicts likely stop counts, stint lengths, and common successful approaches given similar historical races. 
+project-doc
+Outcome predictions (winner/top-5) as probabilities (optional analytical layer). 
+project-doc
+C. Simulation + “what-if” engine (the heart)
+Given a GP/year/driver:
+Generates many legal strategies (e.g., dry race requires two different dry compounds unless wet).
+Runs hundreds/thousands of Monte Carlo simulations using model-predicted pace + randomness.
+Produces rankings with expected performance + risk profile (mean, best/worst cases, probability of beating baseline). 
+project-doc
+D. Post-race learning loop
+After a race:
+Compares predicted vs actual.
+Logs residuals and error patterns.
+Improves future performance via analysis and model iteration. 
+project-doc
+E. Human-facing product layer
+API backend to run simulations and return results.
+Streamlit dashboard to pick a race/driver, run sims, and visualize tradeoffs. 
+project-doc
+ 
+file-structure
+3) End-to-end lifecycle (how the whole thing runs)
+Step 0 — Environment & deployment
+Everything is designed to run locally using Docker composition:
+Postgres database
+Airflow scheduler
+API service
+Dashboard service 
+project-doc
+ 
+file-structure
+Key repo deployment artifacts:
+docker-compose.yaml
+Dockerfile.api, Dockerfile.dashboard
+requirements.txt 
+file-structure
+Step 1 — Data ingestion (repeatable pipeline)
+Goal: get reliable, structured data for any race/year.
+How:
+Uses FastF1 data fetching (with caching) and persists to DB.
+Scheduled/orchestrated with Airflow so the system can rebuild datasets automatically. 
+project-doc
+Repo indicators:
+pipelines/f1_ingestion_pipeline.py
+pipelines/f1_season_master.py
+airflow.cfg, airflow.db
+cached session artifacts under cache/<year>/<race>/... (FastF1 pickle cache + sqlite) 
+file-structure
+Outputs:
+Clean tables/records in Postgres (via db/init.sql, db/database.py).
+Cached raw-ish session objects for quick re-runs. 
+file-structure
+Step 2 — Feature engineering & metrics
+Goal: convert raw race/session data into model-ready features.
+Repo indicators:
+db/calculate_metrics.py (compute derived metrics)
+models/modeling_engine.py, models/model_config.py (typical place for feature definitions/config)
+data/ directory (workspace for derived datasets) 
+file-structure
+Typical feature families (as the project describes):
+Driver/track identifiers
+Lap number, stint number
+Tire compound + tire age
+Temperature / weather proxies
+Fuel-load proxy by lap
+Traffic/dirty-air approximations (if available/derived) 
+project-doc
+Step 3 — Model training (build “the brain”)
+Goal: train models, persist artifacts, version them.
+Repo indicators:
+models/train_lap_time_model.py
+models/lap_time_model.py
+models/artifacts/ (stored model outputs) 
+file-structure
+Expected behavior:
+Train on historical races (per track/season slices if desired).
+Save model artifacts and configs.
+Expose predict methods used by simulation and API. 
+project-doc
+Step 4 — Strategy generation (enumerate legal options)
+Goal: create a strategy search space that respects rules and realism.
+Repo indicators:
+models/strategy_generator.py
+models/tire_rules.py 
+file-structure
+What it does conceptually:
+Generates combinations of stint lengths and tire compounds.
+Applies constraints:
+minimum compound diversity in dry races
+sensible stint lengths
+pit count bounds
+Produces candidate strategies to simulate. 
+project-doc
+Step 5 — Simulation engine (evaluate strategies under uncertainty)
+Goal: estimate outcome distributions for each strategy.
+Repo indicators:
+models/simulation_engine.py 
+file-structure
+How simulations work (conceptually per the project description):
+For each candidate strategy:
+Predict lap pace per lap with lap-time model (and degradation effects).
+Add stochasticity (uncertainty bands / noise).
+Apply pit-stop loss models and timing.
+Run repeated trials (Monte Carlo).
+Produce metrics:
+expected total race time
+variance / risk (best/worst percentiles)
+probability of beating baseline strategy 
+project-doc
+Modes:
+Manual mode: user specifies pit laps & tires.
+Automated mode: system generates & ranks strategies. 
+project-doc
+Step 6 — Optimization layer (recommend, don’t just compare)
+Goal: choose the “best” strategy given objectives (time vs risk).
+Repo indicators:
+models/optimization/strategy_optimizer.py
+models/optimization/optimizer_config.py 
+file-structure
+Optimization objectives mentioned:
+minimize expected race time
+manage risk vs reward under uncertainty
+respect rule constraints (tires, pit rules, race length) 
+project-doc
+Step 7 — Serving layer (API)
+Goal: make it programmatically usable and UI-friendly.
+Repo indicators:
+api/main.py
+api/routes/simulation.py
+api/schemas.py
+api/deps.py 
+file-structure
+The API’s role:
+Accept: race identifiers, driver, simulation count, mode (manual/auto), strategy inputs (optional)
+Return:
+ranked strategies
+summary stats
+distribution data for charts
+metadata (constraints used, assumptions) 
+project-doc
+Step 8 — Dashboard layer (Streamlit)
+Goal: turn model outputs into decision-friendly visuals.
+Repo indicators:
+app/streamlit_app.py
+dashboard/api_client.py 
+file-structure
+User workflow:
+Select season / GP / session / driver
+View predictions / priors
+Run simulations (manual or automated)
+Compare strategy distributions and risk tradeoffs visually 
+project-doc
+Step 9 — Post-race evaluation loop
+Goal: measure error, learn where models fail, iterate.
+Repo indicators:
+models/post_race/residual_logger.py
+models/post_race/residual_analysis.py 
+file-structure
+Outputs:
+residual logs
+bias breakdowns (hot races, certain tracks, SC-heavy races, etc.)
+feedback into model improvement. 
+project-doc
+4) System architecture (components & responsibilities)
+Core services
+Airflow: orchestrates ingestion/refresh.
+PostgreSQL: canonical store for structured race data.
+Modeling layer: training + prediction + artifacts.
+Simulation + optimization: search and ranking.
+FastAPI backend: exposes everything via endpoints.
+Streamlit dashboard: interactive UI.
+All are wired via Docker composition for local reproducibility. 
+project-doc
+ 
+file-structure
+5) Key data flows (the “wiring diagram” in words)
+Offline loop (build intelligence)
+FastF1 → Airflow ingestion → Postgres → feature/metrics calc → model training → saved artifacts → evaluation/residual logging → improved models 
+project-doc
+Online loop (answer strategy questions)
+User selects GP/driver → Dashboard calls API → API loads models + pulls race context from DB → strategy generator creates candidates → simulation engine runs Monte Carlo → optimizer ranks → API returns distributions + rankings → dashboard visualizes + compares 
+project-doc
+6) Repo map (what each top-level folder is “for”)
+pipelines/ — ingestion orchestration & season pipelines
+db/ — database connection/init + derived metrics
+models/ — training, prediction, simulation, strategy generation, optimization, post-race evaluation
+api/ — FastAPI app, routes, schemas
+app/ and dashboard/ — Streamlit UI + client helpers
+cache/ — FastF1 cached sessions (per year/race)
+logs/ — Airflow scheduler logs
+docker-compose.yaml + Dockerfiles — runtime packaging 
+file-structure
+7) What “done” looks like (end-to-end success criteria)
+A complete run means you can:
+Ingest one or more seasons into Postgres (repeatably).
+Train lap-time (and related) models and persist artifacts.
+Pick a GP/driver in the dashboard.
+Run automated strategy simulation (hundreds/thousands of trials).
+Get a ranked list of strategies with risk metrics and distributions.
+After a real race, run residual analysis to quantify model gaps. 
+project-doc
+

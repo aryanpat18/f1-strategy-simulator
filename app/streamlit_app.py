@@ -31,7 +31,7 @@ from dashboard.api_client import F1StrategyAPIClient
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+API_URL = os.getenv("API_URL") or st.secrets.get("API_URL", "http://localhost:8000")
 api = F1StrategyAPIClient(API_URL)
 
 st.set_page_config(

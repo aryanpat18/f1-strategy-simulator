@@ -6,4 +6,3 @@ textColor = "#e0e0e0"
 
 [server]
 headless = true
-port = 8501

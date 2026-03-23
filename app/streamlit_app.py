@@ -31,7 +31,10 @@ from dashboard.api_client import F1StrategyAPIClient
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-API_URL = os.getenv("API_URL") or st.secrets.get("API_URL", "http://localhost:8000")
+try:
+    API_URL = os.getenv("API_URL") or st.secrets.get("API_URL", "http://localhost:8000")
+except FileNotFoundError:
+    API_URL = "http://localhost:8000"
 api = F1StrategyAPIClient(API_URL)
 
 st.set_page_config(
@@ -322,7 +325,7 @@ if tab_selection == "Pre-Race Strategy":
     strat_df.index.name = "#"
 
     st.dataframe(
-        strat_df[["Strategy", "Pit Laps", "Stops", "Race Time", "Delta", "Std Dev"]].style.applymap(
+        strat_df[["Strategy", "Pit Laps", "Stops", "Race Time", "Delta", "Std Dev"]].style.map(
             lambda v: "color: #2ecc71" if v == "BEST" else
                       "color: #e74c3c" if isinstance(v, str) and v.startswith("+") and float(v.replace("s","").replace("+","")) > 5 else
                       "",
@@ -563,7 +566,7 @@ elif tab_selection == "Race Analysis":
                 stint_df = pd.DataFrame(stint_data)
                 # Color-code by compound
                 st.dataframe(
-                    stint_df.style.format({"avg_time": "{:.3f}"}).applymap(
+                    stint_df.style.format({"avg_time": "{:.3f}"}).map(
                         lambda v: f"background-color: {COMPOUND_COLORS.get(v, '')}" if isinstance(v, str) and v in COMPOUND_COLORS else "",
                         subset=["compound"] if "compound" in stint_df.columns else [],
                     ),

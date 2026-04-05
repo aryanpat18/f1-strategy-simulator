@@ -22,7 +22,7 @@ import plotly.graph_objects as go
 # ---------------------------------------------------------------------------
 # Ensure project root is importable
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -33,8 +33,8 @@ from dashboard.api_client import F1StrategyAPIClient
 # ---------------------------------------------------------------------------
 try:
     API_URL = os.getenv("API_URL") or st.secrets.get("API_URL", "http://localhost:8000")
-except FileNotFoundError:
-    API_URL = "http://localhost:8000"
+except Exception:
+    API_URL = os.getenv("API_URL", "http://localhost:8000")
 api = F1StrategyAPIClient(API_URL)
 
 st.set_page_config(

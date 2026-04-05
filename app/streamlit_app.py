@@ -35,6 +35,7 @@ try:
     API_URL = os.getenv("API_URL") or st.secrets.get("API_URL", "http://localhost:8000")
 except Exception:
     API_URL = os.getenv("API_URL", "http://localhost:8000")
+
 api = F1StrategyAPIClient(API_URL)
 
 st.set_page_config(
@@ -42,6 +43,38 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# ---------------------------------------------------------------------------
+# Quick API connectivity check (fail fast instead of hanging for 90s)
+# ---------------------------------------------------------------------------
+import requests as _req
+
+@st.cache_data(ttl=60, show_spinner=False)
+def _check_api(url: str) -> bool:
+    try:
+        _req.get(f"{url}/data/races", params={"year": 2024}, timeout=5)
+        return True
+    except Exception:
+        return False
+
+if not _check_api(API_URL):
+    _is_localhost = "localhost" in API_URL or "127.0.0.1" in API_URL
+    if _is_localhost:
+        st.error(
+            "**Cannot reach the API** — currently pointing at `localhost`.\n\n"
+            "If you're on **Streamlit Cloud**, add this secret "
+            "(Settings → Secrets):\n"
+            "```toml\n"
+            'API_URL = "https://f1-strategy-simulator-xlev.onrender.com"\n'
+            "```\n"
+            "Then **Reboot app** (top-right menu)."
+        )
+    else:
+        st.warning(
+            f"**API is not responding** (`{API_URL}`). "
+            "The Render free tier takes ~30s to wake up — try refreshing in a minute."
+        )
+    st.caption(f"Configured API URL: `{API_URL}`")
 
 # ---------------------------------------------------------------------------
 # Compound colour palette

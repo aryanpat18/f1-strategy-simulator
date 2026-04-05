@@ -71,7 +71,7 @@ class F1StrategyAPIClient:
         response = requests.get(
             f"{self.base_url}/data/races",
             params=params,
-            timeout=30,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()
@@ -79,7 +79,7 @@ class F1StrategyAPIClient:
     def list_track_metrics(self) -> List[Dict]:
         response = requests.get(
             f"{self.base_url}/data/tracks",
-            timeout=30,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()
@@ -113,7 +113,7 @@ class F1StrategyAPIClient:
         response = requests.get(
             f"{self.base_url}/data/drivers",
             params=params,
-            timeout=30,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()
@@ -123,7 +123,7 @@ class F1StrategyAPIClient:
         response = requests.get(
             f"{self.base_url}/data/teams",
             params=params,
-            timeout=30,
+            timeout=10,
         )
         response.raise_for_status()
         return response.json()

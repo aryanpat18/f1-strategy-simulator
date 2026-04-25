@@ -23,8 +23,9 @@ airflow.cfg
 logs/
 webserver_config.py
 
-# Model artifacts (trained models — too large for git)
-models/artifacts/*.joblib
+# Model artifacts: small enough (~7MB total) to track in git so Render
+# deploys with a working ML model baked in. Re-train locally and commit
+# to update.
 
 # IDE
 .idea/

@@ -36,6 +36,7 @@ from models.feature_config import (
     CATEGORICAL_FEATURES,
     NUMERIC_FEATURES,
     FEATURE_DEFAULTS,
+    MONOTONE_CONSTRAINTS,
 )
 
 
@@ -51,6 +52,7 @@ class LapTimeModel:
         self.categorical_features = CATEGORICAL_FEATURES
         self.numeric_features = NUMERIC_FEATURES
         self.models = {}
+        self.residual_offsets: Dict[str, Dict[str, float]] = {}
 
     # --------------------------------------------------
     # TRAINING
@@ -58,13 +60,20 @@ class LapTimeModel:
 
     def train(self, df: pd.DataFrame) -> None:
         """
-        Train LightGBM quantile regression models.
-        Splits 80/20 train/validation and prints quality metrics.
+        Train a physics-constrained median + per-compound quantile bands.
+
+        The median (p50) is fit with L1 regression and monotone constraints
+        on tire_age and fuel_load — without this, fuel-burn signal masks
+        tire wear within a stint, producing inverted degradation curves.
+
+        p10 and p90 are derived from per-compound empirical residual
+        quantiles on the validation set. This keeps the bands calibrated
+        without subjecting them to the same constraint (LightGBM disallows
+        monotone + quantile in one fit).
         """
         X = df[self.feature_columns].copy()
         y = df["lap_time_seconds"]
 
-        # Convert categoricals to pandas category dtype (LightGBM requirement)
         for col in self.categorical_features:
             X[col] = X[col].astype("category")
 
@@ -77,29 +86,59 @@ class LapTimeModel:
 
         print(f"\n  Training on {len(X_train):,} laps, validating on {len(X_val):,} laps.")
 
-        quantiles = {"p10": 0.10, "p50": 0.50, "p90": 0.90}
+        # ------------------------------------------------------------------
+        # p50: L1 regression (median) with monotone constraints
+        # ------------------------------------------------------------------
+        monotone = [MONOTONE_CONSTRAINTS[c] for c in self.feature_columns]
+        active = [(c, MONOTONE_CONSTRAINTS[c]) for c in self.feature_columns
+                  if MONOTONE_CONSTRAINTS[c] != 0]
+        print(f"  Monotone constraints: {active}")
 
-        for label, q in quantiles.items():
-            print(f"  Training {label} model (alpha={q})...")
-            model = lgb.LGBMRegressor(
-                objective="quantile",
-                alpha=q,
-                n_estimators=500,
-                max_depth=6,
-                learning_rate=0.05,
-                num_leaves=63,
-                min_child_samples=20,
-                colsample_bytree=0.8,
-                subsample=0.8,
-                subsample_freq=1,
-                random_state=42,
-                verbose=-1,
-            )
-            model.fit(
-                X_train, y_train,
-                categorical_feature=self.categorical_features,
-            )
-            self.models[label] = model
+        # LightGBM only supports monotone constraints with the L2 (regression)
+        # objective. After Phase 1 hygiene the lap-time distribution is roughly
+        # symmetric, so the L2 mean is a good proxy for the median.
+        print("  Training p50 model (L2 + monotone)...")
+        p50 = lgb.LGBMRegressor(
+            objective="regression",
+            n_estimators=500,
+            max_depth=6,
+            learning_rate=0.05,
+            num_leaves=63,
+            min_child_samples=20,
+            colsample_bytree=0.8,
+            subsample=0.8,
+            subsample_freq=1,
+            monotone_constraints=monotone,
+            monotone_constraints_method="advanced",
+            random_state=42,
+            verbose=-1,
+        )
+        p50.fit(X_train, y_train, categorical_feature=self.categorical_features)
+        self.models["p50"] = p50
+
+        # ------------------------------------------------------------------
+        # Per-compound residual quantiles for p10/p90 bands
+        # ------------------------------------------------------------------
+        val_pred = p50.predict(X_val)
+        residuals = y_val.values - val_pred
+        compounds = X_val["tire_compound"].astype(str).values
+
+        offsets = {}
+        for compound in sorted(set(compounds)):
+            mask = compounds == compound
+            if mask.sum() < 30:
+                continue
+            offsets[compound] = {
+                "p10": float(np.percentile(residuals[mask], 10)),
+                "p90": float(np.percentile(residuals[mask], 90)),
+            }
+        # Global fallback for compounds we never saw in validation
+        offsets["__default__"] = {
+            "p10": float(np.percentile(residuals, 10)),
+            "p90": float(np.percentile(residuals, 90)),
+        }
+        self.residual_offsets = offsets
+        print(f"  Per-compound residual bands: {offsets}")
 
         self._save_models()
         print(f"\n  Models saved to {self.model_dir}")
@@ -127,11 +166,10 @@ class LapTimeModel:
         df = pd.DataFrame([row], columns=self.feature_columns)
         self._cast_categoricals(df)
 
-        p10 = float(self.models["p10"].predict(df)[0])
         p50 = float(self.models["p50"].predict(df)[0])
-        p90 = float(self.models["p90"].predict(df)[0])
-
-        return p10, p50, p90
+        compound = str(row.get("tire_compound", "MEDIUM"))
+        off = self.residual_offsets.get(compound, self.residual_offsets.get("__default__", {"p10": -0.4, "p90": 0.4}))
+        return p50 + off["p10"], p50, p50 + off["p90"]
 
     # --------------------------------------------------
     # PREDICTION — BATCH (fast path for optimizer)
@@ -169,11 +207,23 @@ class LapTimeModel:
         batch = pd.DataFrame(coerced_rows, columns=self.feature_columns)
         self._cast_categoricals(batch)
 
-        p10 = self.models["p10"].predict(batch)
         p50 = self.models["p50"].predict(batch)
-        p90 = self.models["p90"].predict(batch)
 
-        return p10.astype(float), p50.astype(float), p90.astype(float)
+        # Per-compound residual offsets for p10/p90
+        default = self.residual_offsets.get("__default__", {"p10": -0.4, "p90": 0.4})
+        compounds = batch["tire_compound"].astype(str).values
+        p10_off = np.empty(n, dtype=float)
+        p90_off = np.empty(n, dtype=float)
+        for i, c in enumerate(compounds):
+            off = self.residual_offsets.get(c, default)
+            p10_off[i] = off["p10"]
+            p90_off[i] = off["p90"]
+
+        return (
+            (p50 + p10_off).astype(float),
+            p50.astype(float),
+            (p50 + p90_off).astype(float),
+        )
 
     # --------------------------------------------------
     # PRIVATE: METRICS
@@ -189,9 +239,18 @@ class LapTimeModel:
         print("MODEL QUALITY REPORT (validation set)")
         print("=" * 50)
 
-        preds = {}
-        for label in ["p10", "p50", "p90"]:
-            preds[label] = self.models[label].predict(X_val)
+        p50_pred = self.models["p50"].predict(X_val)
+
+        # Reconstruct p10/p90 from per-compound residual offsets
+        default = self.residual_offsets.get("__default__", {"p10": -0.4, "p90": 0.4})
+        val_compounds = X_val["tire_compound"].astype(str).values
+        p10_off = np.array([self.residual_offsets.get(c, default)["p10"] for c in val_compounds])
+        p90_off = np.array([self.residual_offsets.get(c, default)["p90"] for c in val_compounds])
+        preds = {
+            "p10": p50_pred + p10_off,
+            "p50": p50_pred,
+            "p90": p50_pred + p90_off,
+        }
 
         print("\n  MAE per quantile:")
         for label in ["p10", "p50", "p90"]:
@@ -210,7 +269,6 @@ class LapTimeModel:
             print(f"  {label}: {pct_below:.1f}%  (target: {q*100:.0f}%)")
 
         print("\n  p50 MAE by tire compound:")
-        val_compounds = X_val["tire_compound"].values
         for compound in sorted(set(val_compounds)):
             mask = val_compounds == compound
             if mask.sum() < 10:
@@ -274,9 +332,8 @@ class LapTimeModel:
 
     def _artifacts_exist(self) -> bool:
         required = [
-            os.path.join(self.model_dir, "lap_time_model_p10.joblib"),
             os.path.join(self.model_dir, "lap_time_model_p50.joblib"),
-            os.path.join(self.model_dir, "lap_time_model_p90.joblib"),
+            os.path.join(self.model_dir, "residual_offsets.joblib"),
         ]
         return all(os.path.exists(p) for p in required)
 
@@ -286,18 +343,22 @@ class LapTimeModel:
 
     def _save_models(self) -> None:
         os.makedirs(self.model_dir, exist_ok=True)
-        for name, model in self.models.items():
-            joblib.dump(
-                model,
-                os.path.join(self.model_dir, f"lap_time_model_{name}.joblib"),
-            )
+        joblib.dump(
+            self.models["p50"],
+            os.path.join(self.model_dir, "lap_time_model_p50.joblib"),
+        )
+        joblib.dump(
+            self.residual_offsets,
+            os.path.join(self.model_dir, "residual_offsets.joblib"),
+        )
 
     def _load_models(self) -> None:
         self.models = {
-            "p10": joblib.load(os.path.join(self.model_dir, "lap_time_model_p10.joblib")),
             "p50": joblib.load(os.path.join(self.model_dir, "lap_time_model_p50.joblib")),
-            "p90": joblib.load(os.path.join(self.model_dir, "lap_time_model_p90.joblib")),
         }
+        self.residual_offsets = joblib.load(
+            os.path.join(self.model_dir, "residual_offsets.joblib")
+        )
 
 
 def _pinball_loss(y_true: np.ndarray, y_pred: np.ndarray, quantile: float) -> float:

@@ -46,6 +46,32 @@ NUMERIC_FEATURES = [
 ]
 
 # ---------------------------------------------------------------------------
+# Monotone constraints — physics-backed inductive bias for LightGBM
+# ---------------------------------------------------------------------------
+# Without these, the model can learn a NET-NEGATIVE slope on tire_age within
+# a stint because fuel_load and lap_number carry a strong "later in race =
+# faster" signal that masks tire wear. We force the partial effect of
+# tire_age and fuel_load to monotonically slow the lap.
+#
+# Values: -1 (decreasing), 0 (unconstrained), +1 (increasing).
+# Order MUST match FEATURE_COLUMNS exactly.
+
+MONOTONE_CONSTRAINTS = {
+    "driver_id":      0,
+    "team_id":        0,
+    "circuit_key":    0,
+    "lap_number":     0,   # track evolution can rubber-in or get hotter — keep free
+    "race_progress":  0,
+    "tire_compound":  0,
+    "tire_age":      +1,   # older tires = slower (degradation)
+    "fuel_load":     +1,   # heavier car = slower (laps_remaining proxy)
+    "track_temp":     0,   # compound-dependent, complex
+    "air_temp":       0,
+    "regulation_era": 0,
+    "stint_number":   0,
+}
+
+# ---------------------------------------------------------------------------
 # Defaults — used by _coerce_features() when a value is not provided
 # ---------------------------------------------------------------------------
 

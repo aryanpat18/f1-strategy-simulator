@@ -1,0 +1,65 @@
+name: Weekly F1 Data Ingestion
+
+# Runs every Monday at 04:00 UTC — gives FastF1 a day to publish results
+# from the previous Sunday's race. Outside the F1 season the job is a
+# no-op (no new rounds available, FastF1 returns nothing).
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Season to ingest (defaults to current year)"
+        required: false
+      force:
+        description: "Re-ingest even if rounds are already in DB"
+        required: false
+        default: "false"
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      FASTF1_CACHE_PATH: ${{ github.workspace }}/.fastf1_cache
+      MODEL_DIR: ${{ github.workspace }}/models/artifacts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+
+      - name: Cache FastF1 data
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.fastf1_cache
+          key: fastf1-cache-${{ github.run_id }}
+          restore-keys: fastf1-cache-
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install fastf1 sqlalchemy psycopg2-binary pandas numpy scipy \
+                      scikit-learn lightgbm optuna joblib
+
+      - name: Resolve target year
+        id: year
+        run: |
+          YEAR="${{ github.event.inputs.year }}"
+          if [ -z "$YEAR" ]; then
+            YEAR=$(date -u +%Y)
+          fi
+          echo "year=$YEAR" >> "$GITHUB_OUTPUT"
+
+      - name: Run backfill (no model retraining)
+        run: |
+          ARGS="--years ${{ steps.year.outputs.year }} --no-train"
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          python pipelines/backfill_seasons.py $ARGS

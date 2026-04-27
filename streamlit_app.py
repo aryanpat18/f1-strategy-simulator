@@ -184,7 +184,7 @@ with st.sidebar.expander("Simulation Params"):
 
 tab_selection = st.sidebar.radio(
     "View",
-    ["Pre-Race Strategy", "Safety Car What-If", "Race Analysis", "Season Form"],
+    ["Pre-Race Strategy", "Safety Car What-If", "Race Analysis", "Season Form", "Post-Race What-If"],
 )
 
 # ===========================================================================
@@ -720,3 +720,211 @@ elif tab_selection == "Season Form":
         )
     else:
         st.info(f"No historical data for {form_event}.")
+
+
+# ===========================================================================
+# TAB 5: POST-RACE WHAT-IF
+# ===========================================================================
+elif tab_selection == "Post-Race What-If":
+    st.header(f"Post-Race What-If — {event_name} {year}")
+    st.caption(
+        "Pick two drivers from a finished race, define alternative strategies, "
+        "and see how the result would have changed. The engine reconstructs "
+        "each driver's actual stints from the laps table and re-simulates "
+        "with your overrides."
+    )
+
+    if not drivers:
+        st.warning("No drivers loaded — pick a year that has races ingested.")
+        st.stop()
+
+    cf_c1, cf_c2 = st.columns(2)
+    driver_a = cf_c1.selectbox("Driver A", drivers, index=0, key="cf_driver_a")
+    default_b = 1 if len(drivers) > 1 else 0
+    driver_b = cf_c2.selectbox("Driver B", drivers, index=default_b, key="cf_driver_b")
+
+    if driver_a == driver_b:
+        st.warning("Pick two different drivers.")
+        st.stop()
+
+    st.subheader("Alternative strategies")
+    st.caption(
+        "Stints + compounds must sum to the race length. Leave 'Use actual' "
+        "checked to skip the override for that driver."
+    )
+
+    COMPOUND_CHOICES = ["SOFT", "MEDIUM", "HARD"]
+
+    def _strategy_inputs(label: str, key_prefix: str) -> dict:
+        col_a, col_b = st.columns([1, 2])
+        use_actual = col_a.checkbox(
+            f"{label}: use actual",
+            value=True,
+            key=f"{key_prefix}_use_actual",
+        )
+        stints_text = col_b.text_input(
+            f"{label} alternative stints (comma-separated)",
+            value="20, 37" if race_laps == 57 else f"{race_laps // 2}, {race_laps - race_laps // 2}",
+            key=f"{key_prefix}_stints",
+            disabled=use_actual,
+        )
+        comp_cols = st.columns(4)
+        comps = []
+        for i in range(4):
+            comps.append(comp_cols[i].selectbox(
+                f"{label} stint {i+1} compound",
+                ["—"] + COMPOUND_CHOICES,
+                index=2 if i == 0 else (3 if i == 1 else 0),  # MED, HARD, —, —
+                key=f"{key_prefix}_comp_{i}",
+                disabled=use_actual,
+            ))
+        return {
+            "use_actual": use_actual,
+            "stints_text": stints_text,
+            "compounds": [c for c in comps if c != "—"],
+        }
+
+    alt_a = _strategy_inputs(f"Driver A ({driver_a})", "cf_a")
+    st.markdown("---")
+    alt_b = _strategy_inputs(f"Driver B ({driver_b})", "cf_b")
+
+    def _parse_strategy(alt: dict) -> dict:
+        try:
+            stints = [int(x.strip()) for x in alt["stints_text"].split(",") if x.strip()]
+        except ValueError:
+            return {"error": "Stints must be integers"}
+        compounds = alt["compounds"]
+        if len(stints) != len(compounds):
+            return {"error": f"{len(stints)} stints but {len(compounds)} compounds picked"}
+        if sum(stints) != race_laps:
+            return {"error": f"Stints sum to {sum(stints)} but race is {race_laps} laps"}
+        return {"stints": stints, "compounds": compounds}
+
+    if st.button("Run Counterfactual Scenarios", type="primary", use_container_width=True):
+        scenarios = [{"name": "baseline_actual", "overrides": []}]
+        override_a = None
+        override_b = None
+        if not alt_a["use_actual"]:
+            parsed = _parse_strategy(alt_a)
+            if "error" in parsed:
+                st.error(f"Driver A: {parsed['error']}")
+                st.stop()
+            override_a = {"driver_id": driver_a, **parsed}
+            scenarios.append({"name": f"only_{driver_a}_alt", "overrides": [override_a]})
+        if not alt_b["use_actual"]:
+            parsed = _parse_strategy(alt_b)
+            if "error" in parsed:
+                st.error(f"Driver B: {parsed['error']}")
+                st.stop()
+            override_b = {"driver_id": driver_b, **parsed}
+            scenarios.append({"name": f"only_{driver_b}_alt", "overrides": [override_b]})
+        if override_a and override_b:
+            scenarios.append({
+                "name": "both_alt",
+                "overrides": [override_a, override_b],
+            })
+
+        if len(scenarios) == 1:
+            st.warning(
+                "No alternatives provided — only the baseline will run. "
+                "Uncheck 'use actual' for at least one driver to see counterfactuals."
+            )
+
+        payload = {
+            "year": year,
+            "round": round_number,
+            "drivers": [driver_a, driver_b],
+            "scenarios": scenarios,
+            "num_simulations": num_sims,
+            "seed": 42,
+        }
+
+        with st.spinner(f"Running {len(scenarios)} scenarios × {num_sims} sims per driver..."):
+            try:
+                resp = api.post_race_counterfactual(payload)
+            except requests.HTTPError as e:
+                st.error(f"API error: {e.response.text}")
+                st.stop()
+            except Exception as e:
+                st.error(f"Request failed: {e}")
+                st.stop()
+
+        st.success(f"Ran {len(resp['scenarios'])} scenarios.")
+
+        # ---------- Summary table ----------
+        rows = []
+        for sc in resp["scenarios"]:
+            for d in sc["drivers"]:
+                rows.append({
+                    "scenario": sc["name"],
+                    "driver": d["driver_id"],
+                    "alt?": "yes" if d["is_override"] else "—",
+                    "compounds": "-".join(d["strategy"]["compounds"]),
+                    "stints": "-".join(str(x) for x in d["strategy"]["stints"]),
+                    "sim_p50_s": round(d["sim_p50"], 1),
+                    "actual_s": round(d["actual_total_time"], 1),
+                    "delta_p50": round(d["delta_p50"], 1),
+                })
+        st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+        # ---------- Per-scenario gap chart ----------
+        st.subheader("Lap-by-lap virtual gap (Driver B − Driver A, p50)")
+        st.caption(
+            "Positive = Driver A is ahead. The chart compares the simulated "
+            "cumulative time difference between the two drivers in each scenario."
+        )
+        gap_fig = go.Figure()
+        for sc in resp["scenarios"]:
+            d_map = {d["driver_id"]: d for d in sc["drivers"]}
+            cum_a = d_map[driver_a]["cumulative_time_p50"]
+            cum_b = d_map[driver_b]["cumulative_time_p50"]
+            n = min(len(cum_a), len(cum_b))
+            gaps = [cum_b[i] - cum_a[i] for i in range(n)]
+            gap_fig.add_trace(go.Scatter(
+                x=list(range(1, n + 1)),
+                y=gaps,
+                mode="lines",
+                name=sc["name"],
+            ))
+        gap_fig.add_hline(y=0, line_dash="dash", line_color="gray")
+        gap_fig.update_layout(
+            xaxis_title="Lap",
+            yaxis_title=f"Gap ({driver_b} − {driver_a}) seconds",
+            height=400,
+            legend_title="Scenario",
+        )
+        st.plotly_chart(gap_fig, use_container_width=True)
+
+        # ---------- Final-time comparison ----------
+        st.subheader("Final time per scenario")
+        bar_rows = []
+        for sc in resp["scenarios"]:
+            for d in sc["drivers"]:
+                bar_rows.append({
+                    "scenario": sc["name"],
+                    "driver": d["driver_id"],
+                    "sim_p50_s": d["sim_p50"],
+                })
+        bar_df = pd.DataFrame(bar_rows)
+        bar_fig = px.bar(
+            bar_df, x="scenario", y="sim_p50_s", color="driver",
+            barmode="group", title="Simulated total race time (p50) by scenario",
+        )
+        st.plotly_chart(bar_fig, use_container_width=True)
+
+        # ---------- Verdict ----------
+        st.subheader("Verdict")
+        for sc in resp["scenarios"]:
+            order = sc["finishing_order_p50"]
+            d_map = {d["driver_id"]: d for d in sc["drivers"]}
+            winner = order[0]
+            runner_up = order[1] if len(order) > 1 else None
+            if runner_up:
+                gap = sc["gap_matrix_p50"][runner_up][winner]
+                msg = (
+                    f"**{sc['name']}**: {winner} ahead of {runner_up} "
+                    f"by {gap:+.1f}s (p50)."
+                )
+            else:
+                msg = f"**{sc['name']}**: {winner} only."
+            st.markdown(msg)

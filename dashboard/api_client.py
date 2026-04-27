@@ -62,6 +62,15 @@ class F1StrategyAPIClient:
         response.raise_for_status()
         return response.json()
 
+    def post_race_counterfactual(self, payload: Dict) -> Dict:
+        response = requests.post(
+            f"{self.base_url}/post-race/counterfactual",
+            json=payload,
+            timeout=180,
+        )
+        response.raise_for_status()
+        return response.json()
+
     # --------------------------------------------------
     # Data endpoints
     # --------------------------------------------------

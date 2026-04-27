@@ -13,11 +13,27 @@ compared to 2020-2021. Training across both eras causes distribution shift.
 
 By filtering to 2022+, we train on consistent car behavior.
 The regulation_era feature future-proofs the system for 2026+ regs.
+
+Phase 1 data hygiene (2026-04-26)
+---------------------------------
+The dry-pace model is trained ONLY on representative dry race-pace laps.
+Filters applied (in order):
+
+  1. Drop wet-compound laps (INTER/WET) — separate physics entirely.
+  2. Drop laps in races flagged wet (rainfall observed in session).
+  3. Drop SC/VSC-affected laps (field median >120% of race-fastest at that lap).
+  4. Drop lap 1 (standing start — not degradation physics).
+  5. Drop stint warmup laps (first lap of any non-first stint, tire_age==0).
+  6. Drop in-laps (last lap of any non-final stint — driver backs off / pushes
+     for pit window, depending on strategy, but unrepresentative either way).
+  7. 107% rule on remaining laps (catches data errors / heavy traffic).
+  8. Per-lap-number outlier removal (>115% of field median for that lap).
 """
 
 import os
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -31,6 +47,12 @@ from models.feature_config import FEATURE_COLUMNS, get_regulation_era
 # ---------------------------------------------------------------------------
 
 MIN_TRAINING_YEAR = 2022
+
+DRY_COMPOUNDS = {"SOFT", "MEDIUM", "HARD"}
+SC_FIELD_MEDIAN_THRESHOLD = 1.20   # field median >120% of race fastest = SC/VSC
+LAP_OUTLIER_THRESHOLD = 1.15       # lap >115% of field median for that lap = traffic/spin
+RULE_107_PCT = 1.07
+LAP_TIME_FLOOR_PCT = 0.80          # below 80% of fastest = data error
 
 
 # ---------------------------------------------------------------------------
@@ -141,9 +163,9 @@ def build_training_df(
     df["stint_number"]     = df["stint_number"].astype(int)
 
     # ------------------------------------------------------------------
-    # Quality filter
+    # Phase 1 multi-stage data hygiene
     # ------------------------------------------------------------------
-    df = _filter_outliers(df)
+    df = _clean_training_data(df)
 
     # ------------------------------------------------------------------
     # Weather coverage report
@@ -162,26 +184,84 @@ def build_training_df(
 # ---------------------------------------------------------------------------
 
 
-def _filter_outliers(df: pd.DataFrame) -> pd.DataFrame:
+def _clean_training_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Remove lap-time outliers using the 107% rule (same as F1 regulations).
-    Also drops laps faster than 80% of the best lap (data errors).
+    Multi-stage data hygiene for the dry-pace model.
+
+    Each stage logs how many laps it removes so we can see what dominates
+    the cleanup. Order matters: cheaper / coarser filters run first so
+    the expensive per-lap-median computation runs on a smaller frame.
     """
+    initial = len(df)
+    print(f"\n  Data hygiene starting from {initial:,} raw laps:")
+
+    # Stage 1: drop wet compounds entirely (separate model territory)
     before = len(df)
+    df = df[df["tire_compound"].isin(DRY_COMPOUNDS)].copy()
+    _log_stage("wet-compound laps (INTER/WET)", before - len(df))
 
-    fastest = df.groupby("race_id")["lap_time_seconds"].min().rename("fastest_lap")
-    df = df.join(fastest, on="race_id")
+    # Stage 2: drop races flagged with rainfall
+    before = len(df)
+    if "is_wet_race" in df.columns:
+        df = df[~df["is_wet_race"].fillna(False)].copy()
+    _log_stage("laps from wet races", before - len(df))
 
+    # Stage 3: SC/VSC laps (field-median >120% of race fastest at that lap)
+    before = len(df)
+    race_fastest = df.groupby("race_id")["lap_time_seconds"].transform("min")
+    lap_median   = df.groupby(["race_id", "lap_number"])["lap_time_seconds"].transform("median")
+    sc_mask = lap_median > race_fastest * SC_FIELD_MEDIAN_THRESHOLD
+    df = df[~sc_mask].copy()
+    _log_stage("SC/VSC-affected laps", before - len(df))
+
+    # Stage 4: drop lap 1 (standing start)
+    before = len(df)
+    df = df[df["lap_number"] > 1].copy()
+    _log_stage("lap 1 (standing start)", before - len(df))
+
+    # Stage 5: drop stint warmup laps
+    # First lap of a stint where tire_age == 0 is the out-lap. We already
+    # exclude race-start (lap_number > 1 above), so this catches post-pit
+    # warmups only.
+    before = len(df)
+    df = df.sort_values(["race_id", "driver_id", "lap_number"]).reset_index(drop=True)
+    first_lap_of_stint = df.groupby(["race_id", "driver_id", "stint_number"])["lap_number"].transform("min")
+    warmup_mask = (df["lap_number"] == first_lap_of_stint) & (df["tire_age"] == 0)
+    df = df[~warmup_mask].copy()
+    _log_stage("stint warmup laps (out-laps)", before - len(df))
+
+    # Stage 6: drop in-laps (last lap of any non-final stint)
+    before = len(df)
+    next_stint = df.groupby(["race_id", "driver_id"])["stint_number"].shift(-1)
+    last_in_stint = df.groupby(["race_id", "driver_id", "stint_number"])["lap_number"].transform("max")
+    in_lap_mask = (df["lap_number"] == last_in_stint) & next_stint.notna() & (next_stint > df["stint_number"])
+    df = df[~in_lap_mask].copy()
+    _log_stage("in-laps (pre-pit)", before - len(df))
+
+    # Stage 7: 107% rule + lap-time floor (catches data errors, severe traffic)
+    before = len(df)
+    fastest = df.groupby("race_id")["lap_time_seconds"].transform("min")
     df = df[
-        (df["lap_time_seconds"] <= df["fastest_lap"] * 1.07) &
-        (df["lap_time_seconds"] >= df["fastest_lap"] * 0.80)
-    ].drop(columns=["fastest_lap"])
+        (df["lap_time_seconds"] <= fastest * RULE_107_PCT) &
+        (df["lap_time_seconds"] >= fastest * LAP_TIME_FLOOR_PCT)
+    ].copy()
+    _log_stage("107% rule + low-time floor", before - len(df))
 
-    removed = before - len(df)
-    if removed > 0:
-        print(f"  Filtered {removed:,} outlier laps ({removed / before:.1%} of total).")
+    # Stage 8: per-lap field-median outlier (catches dirty-air / minor incidents)
+    before = len(df)
+    lap_median = df.groupby(["race_id", "lap_number"])["lap_time_seconds"].transform("median")
+    df = df[df["lap_time_seconds"] <= lap_median * LAP_OUTLIER_THRESHOLD].copy()
+    _log_stage("per-lap median outliers", before - len(df))
 
+    final = len(df)
+    pct = (initial - final) / initial if initial else 0.0
+    print(f"  Hygiene complete: {final:,} laps remain ({pct:.1%} removed).\n")
     return df
+
+
+def _log_stage(label: str, removed: int) -> None:
+    if removed > 0:
+        print(f"    - {label:<40} {removed:>7,} laps removed")
 
 
 def _log_weather_coverage(df: pd.DataFrame) -> None:

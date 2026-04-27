@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from api.routes.simulation import router as simulation_router
 from api.routes.data import router as data_router
+from api.routes.post_race import router as post_race_router
 from db.database import init_db
 
 # ----------------------------
@@ -15,6 +16,7 @@ app = FastAPI(
 
 app.include_router(simulation_router)
 app.include_router(data_router)
+app.include_router(post_race_router)
 
 
 @app.on_event("startup")

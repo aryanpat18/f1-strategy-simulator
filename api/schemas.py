@@ -163,3 +163,60 @@ class SafetyCarResponse(BaseModel):
     pit_under_sc: SafetyCarOptionResult
     recommendation: str
     time_delta: float
+
+
+# ----------------------------
+# Post-race counterfactual
+# ----------------------------
+
+class StrategyOverride(BaseModel):
+    """Alternative strategy for one driver in a counterfactual scenario."""
+    driver_id: str
+    stints: List[int]
+    compounds: List[str]
+
+
+class CounterfactualScenario(BaseModel):
+    """One hypothetical world: a name + the driver overrides applied in it.
+    Drivers without an override use their *actual* race strategy."""
+    name: str
+    overrides: List[StrategyOverride] = []
+
+
+class CounterfactualRequest(BaseModel):
+    year: int
+    round: int
+    drivers: List[str]
+    scenarios: List[CounterfactualScenario]
+    num_simulations: int = 300
+    pit_loss_seconds: Optional[float] = None   # falls back to engine default
+    seed: Optional[int] = 42
+
+
+class DriverScenarioOutcome(BaseModel):
+    driver_id: str
+    strategy: StrategyResult
+    is_override: bool
+    actual_total_time: float
+    sim_p10: float
+    sim_p50: float
+    sim_p90: float
+    delta_p50: float
+    cumulative_time_p50: List[float]
+
+
+class ScenarioOutcome(BaseModel):
+    name: str
+    overrides_applied: List[str]
+    drivers: List[DriverScenarioOutcome]
+    finishing_order_p50: List[str]
+    gap_matrix_p50: dict   # {driver_a: {driver_b: gap_seconds}}
+
+
+class CounterfactualResponse(BaseModel):
+    year: int
+    round: int
+    drivers: List[str]
+    pit_loss_used: float
+    num_simulations: int
+    scenarios: List[ScenarioOutcome]
